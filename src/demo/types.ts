@@ -82,7 +82,7 @@ export type AuditEvent = {
 };
 
 export type DemoState = {
-  rolActual: "Donador" | "CasaHogar" | "Admin";
+  rolActual: "Donador" | "CasaHogar" | "Admin" | null;
   pasarelaResultado: "Aprobado" | "Rechazado";
   accesoInformes: boolean;
   cuentaCHEstado: EstadoCH;

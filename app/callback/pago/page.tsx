@@ -17,6 +17,7 @@ export default function CallbackPagoPage() {
   const monto = searchParams.get('monto');
   const fechaPago = searchParams.get('fechaPago');
   const metodoId = searchParams.get('metodoId');
+  const cardData = searchParams.get('cardData');
 
   useEffect(() => {
     if (resultado === 'Aprobado') {
@@ -44,12 +45,25 @@ export default function CallbackPagoPage() {
         
         addApadrinamiento(nuevoApadrinamiento);
       } else if (context === 'metodo_pago') {
-        // Crear método de pago
+        // Crear método de pago con datos reales o por defecto
+        let brand = 'Visa';
+        let last4 = '4242';
+        
+        if (cardData) {
+          try {
+            const parsedData = JSON.parse(decodeURIComponent(cardData));
+            brand = parsedData.brand || 'Visa';
+            last4 = parsedData.last4 || '4242';
+          } catch (e) {
+            // Usar valores por defecto si hay error
+          }
+        }
+        
         const nuevoMetodo = {
           id: `mp${Date.now()}`,
           donadorId: 'u-don1',
-          brand: 'Visa',
-          last4: '4242',
+          brand,
+          last4,
           token: `tok_demo_${Date.now()}`,
           enUso: false
         };

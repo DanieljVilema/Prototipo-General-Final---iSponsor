@@ -13,22 +13,30 @@ import {
   Settings, 
   AlertTriangle,
   FileText,
-  Building
+  Building,
+  User
 } from 'lucide-react';
 
 export function RoleNavigation() {
   const { rolActual } = useDemoStore();
   const pathname = usePathname();
 
+  // Si no hay rol activo, no mostrar navegación
+  if (!rolActual) {
+    return null;
+  }
+
   const donadorLinks = [
     { href: '/explorar', label: 'Explorar', icon: Search },
     { href: '/mis-apadrinamientos', label: 'Mis Apadrinamientos', icon: Heart },
     { href: '/metodos', label: 'Métodos de Pago', icon: CreditCard },
+    { href: '/perfil', label: 'Mi Perfil', icon: User },
   ];
 
   const casaHogarLinks = [
     { href: '/ch', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/ch/apadrinados', label: 'Apadrinados', icon: Users },
+    { href: '/ch/perfil', label: 'Mi Perfil', icon: User },
   ];
 
   const adminLinks = [

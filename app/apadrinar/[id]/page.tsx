@@ -160,7 +160,7 @@ export default function ApadrinarPage() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => router.push('/metodos')}
+                  onClick={() => router.push('/metodos/nuevo')}
                   className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
                 >
                   <Plus size={16} />
@@ -174,7 +174,7 @@ export default function ApadrinarPage() {
                   <p className="text-gray-600 mb-3">No tienes métodos de pago registrados</p>
                   <button
                     type="button"
-                    onClick={() => router.push('/metodos')}
+                    onClick={() => router.push('/metodos/nuevo')}
                     className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
                   >
                     Agregar método de pago

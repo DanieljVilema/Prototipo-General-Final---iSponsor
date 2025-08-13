@@ -65,7 +65,7 @@ interface DemoStore extends DemoState {
 }
 
 const initialState: DemoState = {
-  rolActual: "Donador",
+  rolActual: null,
   pasarelaResultado: "Aprobado",
   accesoInformes: true,
   cuentaCHEstado: "Aprobada",

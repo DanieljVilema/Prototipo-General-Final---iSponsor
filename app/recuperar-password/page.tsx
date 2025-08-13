@@ -39,7 +39,6 @@ export default function RecuperarPasswordPage() {
 
       if (isRegistered) {
         addAudit({
-          ts: new Date().toISOString(),
           actor: 'Sistema',
           accion: 'Solicitud de recuperación de contraseña',
           entidad: 'Autenticación',
@@ -56,7 +55,6 @@ export default function RecuperarPasswordPage() {
         }, 10000);
       } else {
         addAudit({
-          ts: new Date().toISOString(),
           actor: 'Sistema',
           accion: 'Solicitud de recuperación fallida',
           entidad: 'Autenticación',

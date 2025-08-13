@@ -19,6 +19,7 @@ export default function PasarelaPage() {
   const monto = searchParams.get('monto');
   const fechaPago = searchParams.get('fechaPago');
   const metodoId = searchParams.get('metodoId');
+  const cardData = searchParams.get('cardData');
 
   useEffect(() => {
     // Log audit al entrar a la pasarela
@@ -82,6 +83,14 @@ export default function PasarelaPage() {
       case 'apadrinamiento':
         return `Procesando pago de $${monto} USD para apadrinamiento`;
       case 'metodo_pago':
+        if (cardData) {
+          try {
+            const parsedData = JSON.parse(decodeURIComponent(cardData));
+            return `Registrando tarjeta ${parsedData.brand} terminada en ${parsedData.last4}`;
+          } catch {
+            return 'Registrando nuevo método de pago';
+          }
+        }
         return 'Registrando nuevo método de pago';
       default:
         return 'Procesando transacción';
@@ -165,14 +174,53 @@ export default function PasarelaPage() {
           <div className="p-6 border-b">
             <h3 className="font-medium mb-3">Información de Pago (Simulado)</h3>
             <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Tarjeta:</span>
-                <span>•••• •••• •••• 4242</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Tipo:</span>
-                <span>Visa</span>
-              </div>
+              {context === 'metodo_pago' && cardData ? (
+                (() => {
+                  try {
+                    const parsedData = JSON.parse(decodeURIComponent(cardData));
+                    return (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tarjeta:</span>
+                          <span>•••• •••• •••• {parsedData.last4}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tipo:</span>
+                          <span>{parsedData.brand}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Modalidad:</span>
+                          <span className="capitalize">{parsedData.type}</span>
+                        </div>
+                      </>
+                    );
+                  } catch {
+                    return (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tarjeta:</span>
+                          <span>•••• •••• •••• 4242</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tipo:</span>
+                          <span>Visa</span>
+                        </div>
+                      </>
+                    );
+                  }
+                })()
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Tarjeta:</span>
+                    <span>•••• •••• •••• 4242</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Tipo:</span>
+                    <span>Visa</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Procesador:</span>
                 <span>iSponsor Payments (Demo)</span>

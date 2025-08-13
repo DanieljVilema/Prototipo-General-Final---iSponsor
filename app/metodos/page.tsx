@@ -18,14 +18,12 @@ export default function MetodosPage() {
     // Log audit
     logAudit({
       actor: 'Donador',
-      accion: 'Agregar método de pago',
+      accion: 'Iniciar agregar método de pago',
       entidad: 'metodo_pago',
       resultado: 'Pendiente'
     });
 
-    const pasarelaUrl = '/pasarela?context=metodo_pago';
-    showToast('Redirigiendo a pasarela para agregar método...');
-    router.push(pasarelaUrl);
+    router.push('/metodos/nuevo');
   };
 
   const handleDeleteMethod = (metodoId: string) => {

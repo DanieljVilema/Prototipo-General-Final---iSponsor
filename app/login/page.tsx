@@ -48,60 +48,34 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
 
-    // Simular proceso de login
+    // Simular proceso de login (siempre exitoso como solicitado)
     setTimeout(() => {
-      const isSuccess = Math.random() > 0.4; // 60% éxito
-      const newIntentos = isSuccess ? 0 : intentos + 1;
+      // Determinar rol basado en email (demo)
+      let rol: 'Donador' | 'CasaHogar' | 'Admin' = 'Donador';
+      if (formData.email.includes('ch@') || formData.email.includes('casa')) {
+        rol = 'CasaHogar';
+      } else if (formData.email.includes('admin')) {
+        rol = 'Admin';
+      }
 
-      if (isSuccess) {
-        // Determinar rol basado en email (demo)
-        let rol: 'Donador' | 'CasaHogar' | 'Admin' = 'Donador';
-        if (formData.email.includes('ch@') || formData.email.includes('casa')) {
-          rol = 'CasaHogar';
-        } else if (formData.email.includes('admin')) {
-          rol = 'Admin';
-        }
+      addAudit({
+        actor: 'Sistema',
+        accion: 'Inicio de sesión exitoso',
+        entidad: 'Autenticación',
+        resultado: 'OK',
+        ref: `${formData.email} - Rol: ${rol}`
+      });
 
-        addAudit({
-          ts: new Date().toISOString(),
-          actor: formData.email,
-          accion: 'Inicio de sesión exitoso',
-          entidad: 'Autenticación',
-          resultado: 'OK',
-          ref: `Rol: ${rol}`
-        });
-
-        setRolActual(rol);
-        showToast(`Bienvenido como ${rol}`);
-        
-        // Redirigir según rol
-        if (rol === 'CasaHogar') {
-          router.push('/ch');
-        } else if (rol === 'Admin') {
-          router.push('/admin/usuarios');
-        } else {
-          router.push('/explorar');
-        }
+      setRolActual(rol);
+      showToast(`Bienvenido como ${rol}`);
+      
+      // Redirigir según rol
+      if (rol === 'CasaHogar') {
+        router.push('/ch');
+      } else if (rol === 'Admin') {
+        router.push('/admin/usuarios');
       } else {
-        addAudit({
-          ts: new Date().toISOString(),
-          actor: formData.email,
-          accion: 'Intento de inicio de sesión fallido',
-          entidad: 'Autenticación',
-          resultado: 'Error',
-          ref: `Intento ${newIntentos}/5`
-        });
-
-        setIntentos(newIntentos);
-        
-        if (newIntentos >= 5) {
-          setBloqueado(true);
-          setErrors({ general: 'Cuenta bloqueada por exceso de intentos fallidos. Contacte soporte.' });
-          showToast('Cuenta bloqueada por seguridad');
-        } else {
-          setErrors({ general: `Credenciales incorrectas. Intento ${newIntentos}/5` });
-          showToast(`Credenciales incorrectas. ${5 - newIntentos} intentos restantes`);
-        }
+        router.push('/explorar');
       }
 
       setIsSubmitting(false);

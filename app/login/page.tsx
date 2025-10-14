@@ -48,16 +48,76 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
 
-    // Simular proceso de login (siempre exitoso como solicitado)
-    setTimeout(() => {
-      // Determinar rol basado en email (demo)
-      let rol: 'Donador' | 'CasaHogar' | 'Admin' = 'Donador';
-      if (formData.email.includes('ch@') || formData.email.includes('casa')) {
-        rol = 'CasaHogar';
-      } else if (formData.email.includes('admin')) {
-        rol = 'Admin';
+            const { data: signInData, error } = await supabase.auth.signInWithPassword({
+      try {
+        const { data: signInData, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (error) {
+          setIntentos((prev) => {
+            const nuevosIntentos = prev + 1;
+            if (nuevosIntentos >= 5) setBloqueado(true);
+            return nuevosIntentos;
+          });
+          setErrors({ general: error.message });
+          setIsSubmitting(false);
+          return;
+        }
+        // Determinar rol basado en metadata de Supabase
+        let rol: 'Donador' | 'CasaHogar' | 'Admin' = 'Donador';
+        if (signInData?.user?.user_metadata?.tipo === 'CasaHogar') {
+          rol = 'CasaHogar';
+        } else if (signInData?.user?.user_metadata?.tipo === 'Admin') {
+          rol = 'Admin';
+        } else if (signInData?.user?.user_metadata?.tipo === 'Donador') {
+          rol = 'Donador';
+        }
+        addAudit({
+          actor: 'Sistema',
+          accion: 'Inicio de sesión exitoso',
+          entidad: 'Autenticación',
+          resultado: 'OK',
+          ref: `${formData.email} - Rol: ${rol}`
+        });
+        setRolActual(rol);
+        showToast(`Bienvenido como ${rol}`);
+        // Redirigir según rol
+        if (rol === 'CasaHogar') {
+          router.push('/ch');
+        } else if (rol === 'Admin') {
+          router.push('/admin/usuarios');
+        } else {
+          router.push('/explorar');
+        }
+      } catch (err) {
+        setErrors({ general: 'Error inesperado al iniciar sesión.' });
+      }
+      setIsSubmitting(false);
       }
 
+      setIsSubmitting(false);
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+      if (error) {
+        setIntentos((prev) => {
+          const nuevosIntentos = prev + 1;
+          if (nuevosIntentos >= 5) setBloqueado(true);
+          return nuevosIntentos;
+        });
+        setErrors({ general: error.message });
+        setIsSubmitting(false);
+        return;
+      }
+      // Determinar rol basado en metadata de Supabase
+      let rol: 'Donador' | 'CasaHogar' | 'Admin' = 'Donador';
+      if (signInData?.user?.user_metadata?.tipo === 'CasaHogar') {
+        rol = 'CasaHogar';
+      } else if (signInData?.user?.user_metadata?.tipo === 'Admin') {
+        rol = 'Admin';
+      }
       addAudit({
         actor: 'Sistema',
         accion: 'Inicio de sesión exitoso',
@@ -65,10 +125,8 @@ export default function LoginPage() {
         resultado: 'OK',
         ref: `${formData.email} - Rol: ${rol}`
       });
-
       setRolActual(rol);
       showToast(`Bienvenido como ${rol}`);
-      
       // Redirigir según rol
       if (rol === 'CasaHogar') {
         router.push('/ch');
@@ -77,13 +135,16 @@ export default function LoginPage() {
       } else {
         router.push('/explorar');
       }
-
       setIsSubmitting(false);
-    }, 1500);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="absolute top-4 left-4">
+        <Link href="/" className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium shadow">
+          ← Volver a inicio
+        </Link>
+      </div>
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -145,21 +206,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Demo tips */}
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-md p-4">
-            <div className="flex">
-              <CheckCircle className="h-5 w-5 text-blue-400" />
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">Demo - Usuarios de prueba:</h3>
-                <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                  <li>• donador@demo.com (Rol: Donador)</li>
-                  <li>• ch@demo.com (Rol: Casa Hogar)</li>
-                  <li>• admin@demo.com (Rol: Admin)</li>
-                  <li>• Cualquier contraseña funciona en esta demo</li>
-                </ul>
-              </div>
-            </div>
-          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>

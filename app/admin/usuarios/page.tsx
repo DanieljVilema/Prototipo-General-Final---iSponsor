@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 import { Users, CheckCircle, XCircle, Pause, Play, Trash2, AlertCircle, Search, Plus, Edit, Lock, Unlock, UserCheck } from 'lucide-react';
 import { useDemoStore } from '@/src/demo/use-demo-store';
 import { StateChip } from '@/app/components/StateChips';
@@ -147,8 +150,27 @@ export default function AdminUsuariosPage() {
     }
   };
 
+  const router = useRouter();
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const { setRolActual } = useDemoStore();
+  const handleLogout = async () => {
+    setCerrandoSesion(true);
+    await supabase.auth.signOut();
+    setRolActual(undefined);
+    showToast('Sesión cerrada correctamente');
+    router.push('/');
+    setCerrandoSesion(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-6">
+      <div className="absolute top-4 left-4 flex gap-2">
+        <Link href="/" className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium shadow">Inicio</Link>
+        <button onClick={handleLogout} disabled={cerrandoSesion} className="inline-flex items-center px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium shadow font-semibold">
+          <Lock size={16} className="text-red-500 mr-1" />
+          {cerrandoSesion ? 'Cerrando sesión...' : 'Cerrar sesión'}
+        </button>
+      </div>
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">

@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 import { Building2, User, Mail, Phone, Globe, MapPin, Calendar, Save, Edit, Lock, Eye, EyeOff } from 'lucide-react';
 import { useDemoStore } from '@/src/demo/use-demo-store';
 import { showToast } from '@/lib/toast';
@@ -135,8 +138,24 @@ export default function PerfilCasaHogarPage() {
   const fechaFundacion = new Date(casaHogarActual?.fechaFundacion || Date.now());
   const antiguedad = Math.floor((Date.now() - fechaFundacion.getTime()) / (1000 * 60 * 60 * 24 * 365));
 
+  const router = useRouter();
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const { setRolActual } = useDemoStore();
+  const handleLogout = async () => {
+    setCerrandoSesion(true);
+    await supabase.auth.signOut();
+    setRolActual(undefined);
+    showToast('Sesión cerrada correctamente');
+    router.push('/');
+    setCerrandoSesion(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-6">
+      <div className="absolute top-4 left-4 flex gap-2">
+        <Link href="/" className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium shadow">Inicio</Link>
+        <button onClick={handleLogout} className="inline-flex items-center px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium shadow">Cerrar sesión</button>
+      </div>
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
@@ -166,13 +185,23 @@ export default function PerfilCasaHogarPage() {
             
             <div className="flex gap-2">
               {!editando ? (
-                <button
-                  onClick={() => setEditando(true)}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
-                >
-                  <Edit size={16} />
-                  Editar perfil
-                </button>
+                <>
+                  <button
+                    onClick={() => setEditando(true)}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+                  >
+                    <Edit size={16} />
+                    Editar perfil
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    disabled={cerrandoSesion}
+                    className="flex items-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-md transition-colors font-semibold"
+                  >
+                    <Lock size={16} className="text-red-500" />
+                    {cerrandoSesion ? 'Cerrando sesión...' : 'Cerrar sesión'}
+                  </button>
+                </>
               ) : (
                 <div className="flex gap-2">
                   <button

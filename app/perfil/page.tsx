@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { 
   User, 
@@ -131,6 +133,18 @@ export default function PerfilDonadorPage() {
       recibirNewsletters: true
     });
     setEditando(false);
+  };
+
+
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const { setRolActual } = useDemoStore();
+  const handleLogout = async () => {
+    setCerrandoSesion(true);
+    await supabase.auth.signOut();
+    setRolActual(undefined);
+    showToast('Sesión cerrada correctamente');
+    router.push('/');
+    setCerrandoSesion(false);
   };
 
   return (
@@ -433,10 +447,9 @@ export default function PerfilDonadorPage() {
               </div>
             </div>
 
-            {/* Accesos rápidos */}
+            {/* Accesos rápidos y cerrar sesión */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="font-semibold mb-4">Accesos Rápidos</h3>
-              
               <div className="space-y-2">
                 <button
                   onClick={() => router.push('/mis-apadrinamientos')}
@@ -445,7 +458,6 @@ export default function PerfilDonadorPage() {
                   <Heart size={16} className="text-red-500" />
                   <span>Mis Apadrinamientos</span>
                 </button>
-                
                 <button
                   onClick={() => router.push('/metodos')}
                   className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
@@ -453,13 +465,20 @@ export default function PerfilDonadorPage() {
                   <CreditCard size={16} className="text-blue-500" />
                   <span>Métodos de Pago</span>
                 </button>
-                
                 <button
                   onClick={() => router.push('/informes')}
                   className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <Bell size={16} className="text-green-500" />
                   <span>Informes Recibidos</span>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  disabled={cerrandoSesion}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-red-50 rounded-lg transition-colors text-red-700 font-semibold"
+                >
+                  <Lock size={16} className="text-red-500" />
+                  <span>{cerrandoSesion ? 'Cerrando sesión...' : 'Cerrar sesión'}</span>
                 </button>
               </div>
             </div>

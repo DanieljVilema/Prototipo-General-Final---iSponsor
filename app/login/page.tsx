@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useDemoStore } from '@/src/demo/use-demo-store';
 import { showToast } from '@/lib/toast';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,71 +37,20 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (bloqueado) {
-      showToast('Cuenta bloqueada por intentos fallidos. Contacte soporte.');
-      return;
-    }
-
     if (!validateForm()) return;
+    if (bloqueado) return;
 
     setIsSubmitting(true);
 
-            const { data: signInData, error } = await supabase.auth.signInWithPassword({
-      try {
-        const { data: signInData, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        if (error) {
-          setIntentos((prev) => {
-            const nuevosIntentos = prev + 1;
-            if (nuevosIntentos >= 5) setBloqueado(true);
-            return nuevosIntentos;
-          });
-          setErrors({ general: error.message });
-          setIsSubmitting(false);
-          return;
-        }
-        // Determinar rol basado en metadata de Supabase
-        let rol: 'Donador' | 'CasaHogar' | 'Admin' = 'Donador';
-        if (signInData?.user?.user_metadata?.tipo === 'CasaHogar') {
-          rol = 'CasaHogar';
-        } else if (signInData?.user?.user_metadata?.tipo === 'Admin') {
-          rol = 'Admin';
-        } else if (signInData?.user?.user_metadata?.tipo === 'Donador') {
-          rol = 'Donador';
-        }
-        addAudit({
-          actor: 'Sistema',
-          accion: 'Inicio de sesión exitoso',
-          entidad: 'Autenticación',
-          resultado: 'OK',
-          ref: `${formData.email} - Rol: ${rol}`
-        });
-        setRolActual(rol);
-        showToast(`Bienvenido como ${rol}`);
-        // Redirigir según rol
-        if (rol === 'CasaHogar') {
-          router.push('/ch');
-        } else if (rol === 'Admin') {
-          router.push('/admin/usuarios');
-        } else {
-          router.push('/explorar');
-        }
-      } catch (err) {
-        setErrors({ general: 'Error inesperado al iniciar sesión.' });
-      }
-      setIsSubmitting(false);
-      }
-
-      setIsSubmitting(false);
+    try {
       const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
+
       if (error) {
         setIntentos((prev) => {
           const nuevosIntentos = prev + 1;
@@ -111,13 +61,17 @@ export default function LoginPage() {
         setIsSubmitting(false);
         return;
       }
+
       // Determinar rol basado en metadata de Supabase
       let rol: 'Donador' | 'CasaHogar' | 'Admin' = 'Donador';
       if (signInData?.user?.user_metadata?.tipo === 'CasaHogar') {
         rol = 'CasaHogar';
       } else if (signInData?.user?.user_metadata?.tipo === 'Admin') {
         rol = 'Admin';
+      } else if (signInData?.user?.user_metadata?.tipo === 'Donador') {
+        rol = 'Donador';
       }
+
       addAudit({
         actor: 'Sistema',
         accion: 'Inicio de sesión exitoso',
@@ -125,8 +79,10 @@ export default function LoginPage() {
         resultado: 'OK',
         ref: `${formData.email} - Rol: ${rol}`
       });
+
       setRolActual(rol);
       showToast(`Bienvenido como ${rol}`);
+
       // Redirigir según rol
       if (rol === 'CasaHogar') {
         router.push('/ch');
@@ -135,7 +91,11 @@ export default function LoginPage() {
       } else {
         router.push('/explorar');
       }
+    } catch (err) {
+      setErrors({ general: 'Error inesperado al iniciar sesión.' });
+    } finally {
       setIsSubmitting(false);
+    }
   };
 
   return (

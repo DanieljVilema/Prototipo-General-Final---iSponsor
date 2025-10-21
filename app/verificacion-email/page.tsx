@@ -1,46 +1,117 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, Mail, RefreshCw } from 'lucide-react';
+import { CheckCircle, Mail, RefreshCw, AlertCircle } from 'lucide-react';
 import { useDemoStore } from '@/src/demo/use-demo-store';
 import { showToast } from '@/lib/toast';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function VerificacionEmailPage() {
   const { addAudit } = useDemoStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [verified, setVerified] = useState(false);
   const [resendCount, setResendCount] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simular verificación automática después de 5 segundos (demo)
-    const timer = setTimeout(() => {
+    // Obtener email de sessionStorage o query params
+    const email = sessionStorage.getItem('pendingVerificationEmail') || searchParams?.get('email') || '';
+    setUserEmail(email);
+
+    // Verificar si viene de un redirect con token de verificación
+    const verified = searchParams?.get('verified');
+    const type = searchParams?.get('type');
+    
+    if (verified === 'true' && type === 'signup') {
+      // El usuario acaba de verificar su email exitosamente
       setVerified(true);
+      sessionStorage.removeItem('pendingVerificationEmail');
+      
       addAudit({
-        ts: new Date().toISOString(),
         actor: 'Sistema',
         accion: 'Email verificado exitosamente',
         entidad: 'Verificación',
         resultado: 'OK',
-        ref: 'usuario@demo.com'
+        ref: email
       });
-      showToast('Email verificado exitosamente');
-    }, 5000);
+      
+      showToast('¡Email verificado exitosamente!');
+    }
 
-    return () => clearTimeout(timer);
-  }, [addAudit]);
+    // Verificar estado de sesión actual
+    const checkVerificationStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user?.email_confirmed_at) {
+        setVerified(true);
+        sessionStorage.removeItem('pendingVerificationEmail');
+      }
+      
+      setLoading(false);
+    };
 
-  const handleResend = () => {
-    setResendCount(prev => prev + 1);
-    addAudit({
-      ts: new Date().toISOString(),
-      actor: 'Sistema',
-      accion: 'Reenvío de email de verificación',
-      entidad: 'Verificación',
-      resultado: 'OK',
-      ref: `Intento ${resendCount + 1}`
-    });
-    showToast('Email de verificación reenviado (simulado)');
+    checkVerificationStatus();
+  }, [addAudit, searchParams]);
+
+  const handleResend = async () => {
+    if (!userEmail) {
+      showToast('No se encontró el email para reenviar');
+      return;
+    }
+
+    if (resendCount >= 3) {
+      showToast('Has alcanzado el límite de reenvíos. Contacta soporte si necesitas ayuda.');
+      return;
+    }
+
+    setIsResending(true);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: userEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/verificacion-email?verified=true&type=signup`
+        }
+      });
+
+      if (error) {
+        console.error('Error al reenviar:', error);
+        showToast('Error al reenviar el correo. Intenta de nuevo.');
+      } else {
+        setResendCount(prev => prev + 1);
+        addAudit({
+          actor: 'Sistema',
+          accion: 'Reenvío de email de verificación',
+          entidad: 'Verificación',
+          resultado: 'OK',
+          ref: `${userEmail} - Intento ${resendCount + 1}`
+        });
+        showToast('Email de verificación reenviado exitosamente');
+      }
+    } catch (error) {
+      console.error('Error inesperado:', error);
+      showToast('Error inesperado al reenviar');
+    } finally {
+      setIsResending(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando estado...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (verified) {
     return (
@@ -79,7 +150,7 @@ export default function VerificacionEmailPage() {
 
                 <div className="bg-green-50 border border-green-200 rounded-md p-4">
                   <h4 className="text-sm font-medium text-green-900 mb-2">¡Bienvenido a iSponsor!</h4>
-                  <ul className="text-sm text-green-800 space-y-1">
+                  <ul className="text-sm text-green-800 space-y-1 text-left">
                     <li>• Tu cuenta está completamente activada</li>
                     <li>• Puedes explorar candidatos para apadrinar</li>
                     <li>• Configura tus métodos de pago</li>

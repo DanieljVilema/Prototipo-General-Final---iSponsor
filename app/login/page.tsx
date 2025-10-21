@@ -41,58 +41,124 @@ export default function LoginPage() {
     e.preventDefault();
     
     if (!validateForm()) return;
-    if (bloqueado) return;
+    if (bloqueado) {
+      showToast('Tu cuenta está bloqueada. Recupera tu contraseña o contacta soporte.');
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
+      // 1. Intentar iniciar sesión
       const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
       if (error) {
+        // Incrementar contador de intentos fallidos
         setIntentos((prev) => {
           const nuevosIntentos = prev + 1;
-          if (nuevosIntentos >= 5) setBloqueado(true);
+          if (nuevosIntentos >= 5) {
+            setBloqueado(true);
+            showToast('Cuenta bloqueada por exceso de intentos. Recupera tu contraseña.');
+          } else {
+            showToast(`Credenciales incorrectas. Intentos restantes: ${5 - nuevosIntentos}`);
+          }
           return nuevosIntentos;
         });
-        setErrors({ general: error.message });
+
+        // Registrar auditoría de intento fallido
+        addAudit({
+          actor: 'Sistema',
+          accion: 'Intento de inicio de sesión fallido',
+          entidad: 'Autenticación',
+          resultado: 'Error',
+          ref: error.message
+        });
+
+        // Manejar errores específicos
+        if (error.message.includes('Email not confirmed')) {
+          setErrors({ general: 'Por favor verifica tu correo electrónico antes de iniciar sesión.' });
+        } else if (error.message.includes('Invalid login credentials')) {
+          setErrors({ general: 'Correo o contraseña incorrectos.' });
+        } else {
+          setErrors({ general: error.message });
+        }
+
         setIsSubmitting(false);
         return;
       }
 
-      // Determinar rol basado en metadata de Supabase
-      let rol: 'Donador' | 'CasaHogar' | 'Admin' = 'Donador';
-      if (signInData?.user?.user_metadata?.tipo === 'CasaHogar') {
-        rol = 'CasaHogar';
-      } else if (signInData?.user?.user_metadata?.tipo === 'Admin') {
-        rol = 'Admin';
-      } else if (signInData?.user?.user_metadata?.tipo === 'Donador') {
-        rol = 'Donador';
+      // 2. Verificar que el email esté confirmado
+      if (!signInData.user?.email_confirmed_at) {
+        await supabase.auth.signOut();
+        setErrors({ 
+          general: 'Por favor verifica tu correo electrónico. Revisa tu bandeja de entrada y spam.' 
+        });
+        showToast('Correo no verificado');
+        setIsSubmitting(false);
+        return;
       }
+
+      // 3. Obtener perfil del usuario desde la tabla perfiles
+      const { data: perfil, error: perfilError } = await supabase
+        .from('perfiles')
+        .select('rol, nombre, apellido')
+        .eq('id', signInData.user.id)
+        .single();
+
+      if (perfilError || !perfil) {
+        console.error('Error obteniendo perfil:', perfilError);
+        // Fallback a metadata si no existe el perfil
+        const rol = (signInData.user.user_metadata?.tipo || 'Donador') as 'Donador' | 'CasaHogar' | 'Admin';
+        setRolActual(rol);
+      } else {
+        setRolActual(perfil.rol as 'Donador' | 'CasaHogar' | 'Admin');
+      }
+
+      const rolFinal = perfil?.rol || signInData.user.user_metadata?.tipo || 'Donador';
+
+      // 4. Registrar inicio de sesión exitoso en auditoría
+      await supabase.from('auditoria').insert({
+        user_id: signInData.user.id,
+        actor: `${perfil?.nombre || 'Usuario'} (${rolFinal})`,
+        accion: 'Inicio de sesión exitoso',
+        entidad: 'Autenticación',
+        entidad_id: signInData.user.id,
+        resultado: 'OK',
+        detalles: {
+          email: formData.email,
+          rol: rolFinal
+        }
+      });
 
       addAudit({
         actor: 'Sistema',
         accion: 'Inicio de sesión exitoso',
         entidad: 'Autenticación',
         resultado: 'OK',
-        ref: `${formData.email} - Rol: ${rol}`
+        ref: `${formData.email} - Rol: ${rolFinal}`
       });
 
-      setRolActual(rol);
-      showToast(`Bienvenido como ${rol}`);
+      // Resetear intentos al iniciar sesión exitosamente
+      setIntentos(0);
+      setBloqueado(false);
 
-      // Redirigir según rol
-      if (rol === 'CasaHogar') {
+      showToast(`¡Bienvenido, ${perfil?.nombre || 'Usuario'}!`);
+
+      // 5. Redirigir según rol
+      if (rolFinal === 'CasaHogar') {
         router.push('/ch');
-      } else if (rol === 'Admin') {
+      } else if (rolFinal === 'Admin') {
         router.push('/admin/usuarios');
       } else {
         router.push('/explorar');
       }
-    } catch (err) {
-      setErrors({ general: 'Error inesperado al iniciar sesión.' });
+    } catch (err: any) {
+      console.error('Error inesperado:', err);
+      setErrors({ general: 'Error inesperado al iniciar sesión. Por favor, intenta de nuevo.' });
+      showToast('Error inesperado');
     } finally {
       setIsSubmitting(false);
     }

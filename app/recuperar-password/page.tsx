@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Mail, ArrowLeft, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { useDemoStore } from '@/src/demo/use-demo-store';
 import { showToast } from '@/lib/toast';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function RecuperarPasswordPage() {
   const { addAudit } = useDemoStore();
   const [email, setEmail] = useState('');
-  const [step, setStep] = useState<'request' | 'sent' | 'expired'>('request');
+  const [step, setStep] = useState<'request' | 'sent'>('request');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,28 +33,18 @@ export default function RecuperarPasswordPage() {
     if (!validateEmail()) return;
 
     setIsSubmitting(true);
+    setErrors({});
 
-    // Simular proceso de recuperación
-    setTimeout(() => {
-      const isRegistered = Math.random() > 0.3; // 70% registrado
+    try {
+      // Enviar correo de recuperación con Supabase
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/recuperar-password/reset`,
+      });
 
-      if (isRegistered) {
-        addAudit({
-          actor: 'Sistema',
-          accion: 'Solicitud de recuperación de contraseña',
-          entidad: 'Autenticación',
-          resultado: 'OK',
-          ref: email
-        });
-
-        showToast('Enlace de recuperación enviado al email (simulado)');
-        setStep('sent');
-
-        // Simular expiración después de 10 segundos (demo)
-        setTimeout(() => {
-          setStep('expired');
-        }, 10000);
-      } else {
+      if (error) {
+        console.error('Error al enviar correo:', error);
+        
+        // Registrar auditoría de intento fallido
         addAudit({
           actor: 'Sistema',
           accion: 'Solicitud de recuperación fallida',
@@ -62,17 +53,40 @@ export default function RecuperarPasswordPage() {
           ref: email
         });
 
-        setErrors({ email: 'Email no registrado en el sistema' });
-        showToast('Email no encontrado en nuestros registros');
+        // No revelar si el email existe o no (seguridad)
+        setErrors({ 
+          email: 'Si este correo está registrado, recibirás un enlace de recuperación.' 
+        });
+        showToast('Verifica que el correo esté registrado');
+        setIsSubmitting(false);
+        return;
       }
 
+      // Registrar auditoría de solicitud exitosa
+      addAudit({
+        actor: 'Sistema',
+        accion: 'Solicitud de recuperación de contraseña',
+        entidad: 'Autenticación',
+        resultado: 'OK',
+        ref: email
+      });
+
+      showToast('Correo de recuperación enviado exitosamente');
+      setStep('sent');
+
+    } catch (error: any) {
+      console.error('Error inesperado:', error);
+      setErrors({ general: 'Error inesperado. Por favor, intenta de nuevo.' });
+      showToast('Error inesperado');
+    } finally {
       setIsSubmitting(false);
-    }, 2000);
+    }
   };
 
   const handleRetry = () => {
     setStep('request');
     setErrors({});
+    setEmail('');
   };
 
   if (step === 'sent') {
@@ -101,15 +115,15 @@ export default function RecuperarPasswordPage() {
               </h3>
               <p className="text-sm text-gray-600 mb-6">
                 Enviamos un enlace de recuperación a <strong>{email}</strong>. 
-                El enlace expirará en 15 minutos.
+                El enlace expirará en 60 minutos.
               </p>
 
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
                 <div className="flex">
-                  <Clock className="h-5 w-5 text-blue-400" />
-                  <div className="ml-3">
+                  <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0" />
+                  <div className="ml-3 text-left">
                     <p className="text-sm text-blue-800">
-                      <strong>Demo:</strong> El enlace expirará en 10 segundos para mostrar el estado de expiración.
+                      <strong>Importante:</strong> Si no recibes el correo en unos minutos, revisa tu carpeta de spam o correo no deseado.
                     </p>
                   </div>
                 </div>
@@ -134,53 +148,9 @@ export default function RecuperarPasswordPage() {
                     </button>
                   </p>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
-  if (step === 'expired') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-              <AlertCircle className="h-8 w-8 text-red-600" />
-            </div>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-            Enlace expirado
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            El enlace de recuperación ha expirado
-          </p>
-        </div>
-
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <div className="text-center">
-              <Clock className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Enlace expirado
-              </h3>
-              <p className="text-sm text-gray-600 mb-6">
-                El enlace de recuperación enviado a <strong>{email}</strong> ha expirado. 
-                Los enlaces de recuperación son válidos por 15 minutos por seguridad.
-              </p>
-
-              <div className="space-y-4">
-                <button
-                  onClick={handleRetry}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Solicitar nuevo enlace
-                </button>
-
-                <div className="text-center">
-                  <Link href="/login" className="text-sm font-medium text-blue-600 hover:text-blue-500">
+                <div className="text-center pt-4">
+                  <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-500">
                     Volver al inicio de sesión
                   </Link>
                 </div>

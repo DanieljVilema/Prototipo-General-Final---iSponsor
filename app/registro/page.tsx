@@ -59,43 +59,97 @@ export default function RegistroPage() {
     if (!validateForm()) return;
     setIsSubmitting(true);
     setErrors({});
-    // Registro real con Supabase
-    const { data, error } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        data: {
-          nombre: formData.nombre,
-          apellido: formData.apellido,
-          telefono: formData.telefono,
-          fechaNacimiento: formData.fechaNacimiento,
-          tipo: formData.tipo,
-        }
+
+    try {
+      // 1. Verificar si el email ya existe
+      const { data: existingUsers } = await supabase
+        .from('perfiles')
+        .select('email')
+        .eq('email', formData.email)
+        .maybeSingle();
+
+      if (existingUsers) {
+        addAudit({
+          actor: 'Sistema',
+          accion: 'Intento de registro con email duplicado',
+          entidad: 'Usuario',
+          resultado: 'Error',
+          ref: formData.email
+        });
+        setErrors({ 
+          email: 'Este correo ya está registrado. Intenta iniciar sesión o recuperar tu contraseña.' 
+        });
+        showToast('Este correo ya está registrado');
+        setIsSubmitting(false);
+        return;
       }
-    });
-    if (error) {
+
+      // 2. Registrar usuario en Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            nombre: formData.nombre,
+            apellido: formData.apellido,
+            telefono: formData.telefono,
+            fechaNacimiento: formData.fechaNacimiento,
+            tipo: formData.tipo,
+          },
+          emailRedirectTo: `${window.location.origin}/verificacion-email?verified=true`
+        }
+      });
+
+      if (error) {
+        // Manejar errores específicos de Supabase
+        let errorMessage = 'Error en el registro';
+        
+        if (error.message.includes('already registered')) {
+          errorMessage = 'Este correo ya está registrado';
+          setErrors({ email: errorMessage });
+        } else if (error.message.includes('password')) {
+          errorMessage = 'La contraseña debe tener al menos 8 caracteres';
+          setErrors({ password: errorMessage });
+        } else {
+          errorMessage = error.message;
+          setErrors({ general: errorMessage });
+        }
+
+        addAudit({
+          actor: 'Sistema',
+          accion: 'Intento de registro fallido',
+          entidad: 'Usuario',
+          resultado: 'Error',
+          ref: formData.email
+        });
+        
+        showToast(errorMessage);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 3. Registro exitoso
       addAudit({
         actor: 'Sistema',
-        accion: 'Intento de registro fallido',
+        accion: 'Registro exitoso',
         entidad: 'Usuario',
-        resultado: 'Error',
+        resultado: 'OK',
         ref: formData.email
       });
-      setErrors({ general: error.message });
-      showToast('Error: ' + error.message);
+
+      showToast('¡Registro exitoso! Revisa tu correo para verificar tu cuenta.');
+      
+      // Guardar email en sessionStorage para mostrar en página de verificación
+      sessionStorage.setItem('pendingVerificationEmail', formData.email);
+      
+      router.push('/verificacion-email');
+    } catch (error: any) {
+      console.error('Error inesperado:', error);
+      setErrors({ general: 'Error inesperado. Por favor, intenta de nuevo.' });
+      showToast('Error inesperado');
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-    addAudit({
-      actor: 'Sistema',
-      accion: 'Registro exitoso',
-      entidad: 'Usuario',
-      resultado: 'OK',
-      ref: formData.email
-    });
-    showToast('Registro exitoso. Revisa tu correo para verificar la cuenta.');
-    router.push('/verificacion-email');
-    setIsSubmitting(false);
   };
 
   return (
